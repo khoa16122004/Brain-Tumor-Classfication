@@ -1,0 +1,3 @@
+Dataset/Original/testing/*
+Dataset/Original/training/*
+__pycache__
