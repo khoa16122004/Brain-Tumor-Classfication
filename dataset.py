@@ -37,7 +37,6 @@ class BrainTumorDataset(Dataset):
         
         image = transform(image)
         label = self.img_labels.iloc[idx, 1]
-        label = torch.tensor([label])
 
         return image, label
     

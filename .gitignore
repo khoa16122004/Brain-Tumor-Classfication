@@ -2,5 +2,7 @@ Dataset/original/testing/*
 Dataset/original/training/*
 Dataset/new/training/*
 Dataset/new/testing/*
-Dataset/arguments/
+Dataset/arguments/*
 __pycache__
+
+
