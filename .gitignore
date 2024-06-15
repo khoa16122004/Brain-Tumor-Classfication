@@ -1,3 +1,6 @@
-Dataset/Original/testing/*
-Dataset/Original/training/*
+Dataset/original/testing/*
+Dataset/original/training/*
+Dataset/new/training/*
+Dataset/new/testing/*
+Dataset/arguments/
 __pycache__

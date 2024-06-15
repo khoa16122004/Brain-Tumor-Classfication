@@ -1,50 +1,44 @@
-import torch
-from torchvision import transforms
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 from PIL import Image
-import matplotlib.pyplot as plt
+from torch.utils.data import Dataset, DataLoader
+import pandas as pd
+import numpy as np
+import os
+import torch
+from torchvision.io import read_image
+from torchvision import transforms
 
-def augment_and_save_images(image_path, num_samples=5, output_size=(224, 224)):
-    # Đọc hình ảnh gốc
-    image = Image.open(image_path).convert('RGB')
+from torchvision.transforms import ToTensor
+
+
+
+
+
+class BrainTumorDataset(Dataset):    
+
+    def __init__(self, annotations_file, img_dir):
+        self.img_labels = pd.read_csv(annotations_file)
+        self.img_dir = img_dir
+
+        
+    def __len__(self):
+        return len(self.img_labels)
     
-    # Định nghĩa các phép biến đổi
-    transform = transforms.Compose([
-        transforms.RandomHorizontalFlip(p=0.5),             # Lật ngang ngẫu nhiên với xác suất 0.5
-        transforms.RandomVerticalFlip(p=0.5),               # Lật dọc ngẫu nhiên với xác suất 0.5
-        transforms.RandomRotation(degrees=45),              # Xoay ngẫu nhiên trong khoảng +/- 45 độ
-        transforms.RandomResizedCrop(size=output_size,      # Phóng to ngẫu nhiên và cắt kích thước đầu ra
-                                     scale=(0.8, 1.0),      # Tỉ lệ phóng to trong khoảng 80% đến 100%
-                                     ratio=(0.75, 1.33)),   # Tỉ lệ khung hình trong khoảng 3/4 đến 4/3
-        transforms.ColorJitter(brightness=0.5,              # Thay đổi độ sáng ngẫu nhiên
-                               contrast=0.5,                # Thay đổi độ tương phản ngẫu nhiên
-                               saturation=0.5,              # Thay đổi độ bão hòa ngẫu nhiên
-                               hue=0.1)                     # Thay đổi tông màu ngẫu nhiên
-    ])
+    def __getitem__(self, idx):
+        img_path = os.path.join(self.img_dir, self.img_labels.iloc[idx, 0])
+        image = Image.open(img_path).convert('RGB')
+
+        transform = transforms.Compose([
+        transforms.Resize((224, 224)), # tuy shape input
+        transforms.ToTensor()])
+
+        
+        image = transform(image)
+        label = self.img_labels.iloc[idx, 1]
+        label = torch.tensor([label])
+
+        return image, label
     
-    augmented_images = []
 
-    # Tạo nhiều mẫu từ một ảnh gốc
-    for _ in range(num_samples):
-        augmented_image = transform(image)
-        augmented_images.append(augmented_image)
-
-    return augmented_images
-
-image_path = '/mnt/data/image.png'
-augmented_images = augment_and_save_images(image_path, num_samples=10, output_size=(224, 224))
-
-# Hiển thị các hình ảnh gốc và các hình ảnh đã được biến đổi
-plt.figure(figsize=(15, 5))
-
-plt.subplot(1, 6, 1)
-plt.imshow(Image.open(image_path).convert('RGB'))
-plt.title('Original Image')
-plt.axis('off')
-
-for i, augmented_image in enumerate(augmented_images):
-    plt.subplot(1, 6, i + 2)
-    plt.imshow(augmented_image)
-    plt.title(f'Augmented Image {i+1}')
-    plt.axis('off')
-
-plt.show()
