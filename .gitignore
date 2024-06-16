@@ -4,5 +4,4 @@ Dataset/new/training/*
 Dataset/new/testing/*
 Dataset/arguments/*
 __pycache__
-
-
+trained_process/
