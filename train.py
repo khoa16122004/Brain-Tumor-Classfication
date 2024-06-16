@@ -8,7 +8,7 @@ from utils import *
 from tqdm import tqdm
 from config import *
 from dataset import BrainTumorDataset
-from architech import Classification, VGG
+from architech import *
 import logging
 
 # Uncomment and use argparse if needed
@@ -47,7 +47,8 @@ train_dataset = BrainTumorDataset(ARGUMENT_PATH, ARGUMENT_DIR)
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
 # model = Classification().train().cuda()
-model = VGG("VGG19").train().cuda()
+# model = VGG("VGG19").train().cuda()
+model = ResNet50().train().cuda()
 criterion = nn.CrossEntropyLoss(size_average=None, reduce=None, reduction='mean').cuda()
 optimizer = Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
 
@@ -84,7 +85,7 @@ for epoch in tqdm(range(epochs)):
     logging.info(f"Epoch {epoch} Loss: {losses_meter.avg:.4f} Acc: {acc_meter.avg:.4f}")
     print(f"Epoch {epoch} Loss: {losses_meter.avg:.4f} Acc: {acc_meter.avg:.4f}")
 
-    if epoch % 40 == 0:
+    if epoch % 10 == 0:
         torch.save(model.state_dict(), f"{OUTDIR_TRAIN}/ep{epoch}.pth")
 
     if not best_acc or acc_meter.avg > best_acc:
