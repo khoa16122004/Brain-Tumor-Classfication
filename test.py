@@ -49,7 +49,6 @@ criterion = nn.CrossEntropyLoss(size_average=None, reduce=None, reduction='mean'
 
 acc_meter = AverageMeter()
 losses_meter = AverageMeter()
-acc_avg = 0
 
 for data in tqdm(test_loader):
     imgs, labels = data
@@ -58,7 +57,6 @@ for data in tqdm(test_loader):
     output = model(imgs)
     loss = criterion(output, labels)
     acc = accuracy(output, labels)
-    acc_avg += acc[0].item()
     # if acc != 1:
     #     print(labels)
     
@@ -66,4 +64,6 @@ for data in tqdm(test_loader):
     acc_meter.update(acc[0].item(), imgs.shape[0])
 
 print(f"Loss: {losses_meter.avg:.4f} Acc: {acc_meter.avg:.4f}")
-print(acc_avg / len(test_dataset))
+# VGG19(data normal): 0.76
+# VGG19(argument): 0.78
+# ResNet50(argument): 0.81

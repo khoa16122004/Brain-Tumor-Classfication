@@ -10,8 +10,8 @@ RESIZE_SHAPE = (224, 224)
 
 lr = 1e-3
 epochs = 200
-batch_size = 1
+batch_size = 64
 weight_decay=1e-5
 OUTDIR_TRAIN = 'trained_process'
 device = "0"
-TRAINED_MODEL_PATH = r"trained_process/best_resnet.pth"
+TRAINED_MODEL_PATH = r"trained_process/Resnet50/best_resnet.pth"
