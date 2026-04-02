@@ -124,7 +124,7 @@ def heat_to_color(heat):
     red = heat
     green = torch.clamp(1.0 - (heat - 0.5).abs() * 2.0, min=0.0, max=1.0)
     blue = 1.0 - heat
-    return torch.stack([red, green, blue], dim=1)
+    return torch.stack([red, green, blue], dim=0)
 
 
 @torch.no_grad()
@@ -227,6 +227,11 @@ def save_saliency_examples(model, loader, device_torch, outdir, max_samples=8):
                 return
 
             img = imgs[i].detach().cpu()
+            if img.dim() == 2:
+                img = img.unsqueeze(0)
+            if img.size(0) == 1:
+                img = img.repeat(3, 1, 1)
+
             grad_heat = grad_saliency[i].detach().cpu()
             ig_heat = ig_saliency[i].detach().cpu()
 
