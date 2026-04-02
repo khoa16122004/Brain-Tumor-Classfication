@@ -120,14 +120,6 @@ def normalize_per_sample(tensor):
     return (tensor - min_val) / (max_val - min_val + 1e-8)
 
 
-def heat_to_color(heat):
-    # Quick RGB mapping without extra dependencies.
-    red = heat
-    green = torch.clamp(1.0 - (heat - 0.5).abs() * 2.0, min=0.0, max=1.0)
-    blue = 1.0 - heat
-    return torch.stack([red, green, blue], dim=0)
-
-
 @torch.no_grad()
 def evaluate_model(model, loader, criterion, device_torch):
     model.eval()
@@ -235,9 +227,6 @@ def save_saliency_examples(model, loader, device_torch, outdir, max_samples=8):
 
             grad_heat = grad_saliency[i].detach().cpu()
             ig_heat = ig_saliency[i].detach().cpu()
-
-            grad_color = heat_to_color(grad_heat)
-            ig_color = heat_to_color(ig_heat)
 
             pred_label = int(preds[i].item())
             gt_label = int(labels[i].item())
