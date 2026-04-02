@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import StepLR
 from torch.optim import Adam
 from torchvision.utils import save_image
+import matplotlib.pyplot as plt
 
 from utils import *
 from tqdm import tqdm
@@ -238,15 +239,20 @@ def save_saliency_examples(model, loader, device_torch, outdir, max_samples=8):
             grad_color = heat_to_color(grad_heat)
             ig_color = heat_to_color(ig_heat)
 
-            grad_overlay = torch.clamp(0.6 * img + 0.4 * grad_color, 0.0, 1.0)
-            ig_overlay = torch.clamp(0.6 * img + 0.4 * ig_color, 0.0, 1.0)
-
             pred_label = int(preds[i].item())
             gt_label = int(labels[i].item())
 
             save_image(img, outdir / f"sample_{saved:02d}_raw_gt{gt_label}_pred{pred_label}.png")
-            save_image(grad_overlay, outdir / f"sample_{saved:02d}_grad_overlay_gt{gt_label}_pred{pred_label}.png")
-            save_image(ig_overlay, outdir / f"sample_{saved:02d}_ig_overlay_gt{gt_label}_pred{pred_label}.png")
+            plt.imsave(
+                outdir / f"sample_{saved:02d}_grad_saliency_gt{gt_label}_pred{pred_label}.png",
+                grad_heat.numpy(),
+                cmap="hot",
+            )
+            plt.imsave(
+                outdir / f"sample_{saved:02d}_ig_saliency_gt{gt_label}_pred{pred_label}.png",
+                ig_heat.numpy(),
+                cmap="hot",
+            )
 
             saved += 1
 
