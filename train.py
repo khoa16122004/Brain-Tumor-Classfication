@@ -1,6 +1,7 @@
 import os
 import random
 from pathlib import Path
+import argparse
 
 import torch
 from torch import nn
@@ -245,7 +246,50 @@ def save_saliency_examples(model, loader, device_torch, outdir, max_samples=8):
             saved += 1
 
 
+def run_test_and_report(model, test_loader, criterion, device_torch, outdir, saliency_samples=8):
+    final_test = evaluate_model(model, test_loader, criterion, device_torch)
+    num_classes = int(final_test["preds"].max().item()) + 1
+    metrics = compute_metrics(final_test["labels"], final_test["preds"], num_classes=num_classes)
+
+    lines = []
+    lines.append("===== Test Performance =====")
+    lines.append(f"Loss: {final_test['loss']:.4f}")
+    lines.append(f"Accuracy: {metrics['overall_acc']:.2f}%")
+    lines.append(f"Macro Precision: {metrics['macro_precision']:.4f}")
+    lines.append(f"Macro Recall: {metrics['macro_recall']:.4f}")
+    lines.append(f"Macro F1: {metrics['macro_f1']:.4f}")
+    lines.append("\nPer-class metrics:")
+    for m in metrics["class_metrics"]:
+        lines.append(
+            f"Class {m['class']}: Precision={m['precision']:.4f}, "
+            f"Recall={m['recall']:.4f}, F1={m['f1']:.4f}, Support={m['support']}"
+        )
+
+    lines.append("\nConfusion Matrix (rows=GT, cols=Pred):")
+    conf_mat = metrics["confusion_matrix"]
+    for row in conf_mat.tolist():
+        lines.append(" ".join(str(v) for v in row))
+
+    report = "\n".join(lines)
+    print(report)
+    logging.info("\n" + report)
+
+    with open(outdir / "test_performance.txt", "w") as f:
+        f.write(report)
+
+    saliency_dir = outdir / "saliency_test"
+    save_saliency_examples(model, test_loader, device_torch, saliency_dir, max_samples=saliency_samples)
+    print(f"Saved saliency examples to: {saliency_dir}")
+    logging.info(f"Saved saliency examples to: {saliency_dir}")
+
+
 def main():
+    parser = argparse.ArgumentParser(description="Train/Test brain tumor classifier")
+    parser.add_argument("--test-only", action="store_true", help="Skip training and run evaluation on test set")
+    parser.add_argument("--checkpoint", type=str, default=None, help="Checkpoint path for test-only mode")
+    parser.add_argument("--saliency-samples", type=int, default=8, help="Number of test samples to visualize")
+    args = parser.parse_args()
+
     set_seed(42)
 
     outdir = Path(OUTDIR_TRAIN)
@@ -271,6 +315,16 @@ def main():
     criterion = nn.CrossEntropyLoss(reduction="mean").to(device_torch)
     optimizer = Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     scheduler = StepLR(optimizer, step_size=30, gamma=0.1)
+
+    if args.test_only:
+        ckpt_path = Path(args.checkpoint) if args.checkpoint else (outdir / "best.pth")
+        if not ckpt_path.exists():
+            raise FileNotFoundError(f"Checkpoint not found: {ckpt_path}")
+
+        model.load_state_dict(torch.load(ckpt_path, map_location=device_torch))
+        logging.info(f"Loaded checkpoint for test-only mode: {ckpt_path}")
+        run_test_and_report(model, test_loader, criterion, device_torch, outdir, saliency_samples=args.saliency_samples)
+        return
 
     best_test_acc = -1.0
 
@@ -314,41 +368,7 @@ def main():
 
     best_ckpt = outdir / "best.pth"
     model.load_state_dict(torch.load(best_ckpt, map_location=device_torch))
-
-    final_test = evaluate_model(model, test_loader, criterion, device_torch)
-    num_classes = int(final_test["preds"].max().item()) + 1
-    metrics = compute_metrics(final_test["labels"], final_test["preds"], num_classes=num_classes)
-
-    lines = []
-    lines.append("===== Test Performance =====")
-    lines.append(f"Loss: {final_test['loss']:.4f}")
-    lines.append(f"Accuracy: {metrics['overall_acc']:.2f}%")
-    lines.append(f"Macro Precision: {metrics['macro_precision']:.4f}")
-    lines.append(f"Macro Recall: {metrics['macro_recall']:.4f}")
-    lines.append(f"Macro F1: {metrics['macro_f1']:.4f}")
-    lines.append("\nPer-class metrics:")
-    for m in metrics["class_metrics"]:
-        lines.append(
-            f"Class {m['class']}: Precision={m['precision']:.4f}, "
-            f"Recall={m['recall']:.4f}, F1={m['f1']:.4f}, Support={m['support']}"
-        )
-
-    lines.append("\nConfusion Matrix (rows=GT, cols=Pred):")
-    conf_mat = metrics["confusion_matrix"]
-    for row in conf_mat.tolist():
-        lines.append(" ".join(str(v) for v in row))
-
-    report = "\n".join(lines)
-    print(report)
-    logging.info("\n" + report)
-
-    with open(outdir / "test_performance.txt", "w") as f:
-        f.write(report)
-
-    saliency_dir = outdir / "saliency_test"
-    save_saliency_examples(model, test_loader, device_torch, saliency_dir, max_samples=8)
-    print(f"Saved saliency examples to: {saliency_dir}")
-    logging.info(f"Saved saliency examples to: {saliency_dir}")
+    run_test_and_report(model, test_loader, criterion, device_torch, outdir, saliency_samples=args.saliency_samples)
 
 
 if __name__ == "__main__":
