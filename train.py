@@ -1,3 +1,4 @@
+import json
 import os
 import random
 from pathlib import Path
@@ -8,7 +9,9 @@ from torch import nn
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import StepLR
 from torch.optim import Adam
+from torchvision import transforms
 from torchvision.utils import save_image
+from PIL import Image as PILImage
 import matplotlib.pyplot as plt
 
 from utils import *
@@ -246,10 +249,38 @@ def save_saliency_examples(model, loader, device_torch, outdir, max_samples=8):
             saved += 1
 
 
-def run_test_and_report(model, test_loader, criterion, device_torch, outdir, saliency_samples=8):
+def collect_correct_paths(model, test_dataset, device_torch, num_classes):
+    """Returns {str(class_id): [list of full img paths correctly classified]}."""
+    model.eval()
+    result = {str(c): [] for c in range(num_classes)}
+    _transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+    ])
+    with torch.no_grad():
+        for line in test_dataset.lines:
+            file_name, label_str = line.split(",")
+            label = int(label_str)
+            img_path = os.path.join(test_dataset.img_dir, file_name)
+            img = PILImage.open(img_path).convert("RGB")
+            img_tensor = _transform(img).unsqueeze(0).to(device_torch)
+            pred = model(img_tensor).argmax(dim=1).item()
+            if pred == label:
+                result[str(label)].append(img_path)
+    return result
+
+
+def run_test_and_report(model, test_loader, test_dataset, criterion, device_torch, outdir, saliency_samples=8):
     final_test = evaluate_model(model, test_loader, criterion, device_torch)
     num_classes = int(final_test["preds"].max().item()) + 1
     metrics = compute_metrics(final_test["labels"], final_test["preds"], num_classes=num_classes)
+
+    correct_paths = collect_correct_paths(model, test_dataset, device_torch, num_classes)
+    json_path = outdir / "resnet50.json"
+    with open(json_path, "w") as _jf:
+        json.dump(correct_paths, _jf, indent=2)
+    print(f"Saved correct paths to: {json_path}")
+    logging.info(f"Saved correct paths to: {json_path}")
 
     lines = []
     lines.append("===== Test Performance =====")
@@ -323,7 +354,7 @@ def main():
 
         model.load_state_dict(torch.load(ckpt_path, map_location=device_torch))
         logging.info(f"Loaded checkpoint for test-only mode: {ckpt_path}")
-        run_test_and_report(model, test_loader, criterion, device_torch, outdir, saliency_samples=args.saliency_samples)
+        run_test_and_report(model, test_loader, test_dataset, criterion, device_torch, outdir, saliency_samples=args.saliency_samples)
         return
 
     best_test_acc = -1.0
@@ -368,7 +399,7 @@ def main():
 
     best_ckpt = outdir / "best.pth"
     model.load_state_dict(torch.load(best_ckpt, map_location=device_torch))
-    run_test_and_report(model, test_loader, criterion, device_torch, outdir, saliency_samples=args.saliency_samples)
+    run_test_and_report(model, test_loader, test_dataset, criterion, device_torch, outdir, saliency_samples=args.saliency_samples)
 
 
 if __name__ == "__main__":
